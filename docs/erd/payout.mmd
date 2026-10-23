@@ -1,0 +1,95 @@
+erDiagram
+    direction LR
+    users["users"] {
+        uuid id PK
+        text email UK
+        text name
+        text password_hash
+        text role
+        timestamptz email_verified_at
+        timestamptz disabled_at
+        text totp_secret
+    }
+    paymentDestinations["payment_destinations"] {
+        uuid id PK
+        uuid user_id FK
+        text bank_code
+        text account_cipher
+        text account_last4
+        text holder
+        text status
+        timestamptz verified_at
+    }
+    wallets["wallets"] {
+        uuid user_id PK, FK
+        bigint pending
+        bigint available
+        bigint held
+        bigint paid
+    }
+    payoutRequests["payout_requests"] {
+        uuid id PK
+        uuid user_id FK
+        uuid destination_id FK
+        text request_key UK
+        text provider_id UK
+        text provider_key UK
+        jsonb destination_snapshot
+        bigint amount
+        text status
+        text failure_reason
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    payoutBatches["payout_batches"] {
+        uuid id PK
+        uuid approved_by FK
+        timestamptz created_at
+    }
+    payoutBatchItems["payout_batch_items"] {
+        uuid payout_id PK, FK
+        uuid batch_id FK
+    }
+    payoutAttempts["payout_attempts"] {
+        uuid id PK
+        uuid payout_id FK
+        text status
+        integer http_status
+        text note
+        timestamptz created_at
+    }
+    webhookInbox["webhook_inbox"] {
+        uuid id PK
+        text fingerprint UK
+        text provider_id
+        jsonb payload
+        text status
+        timestamptz created_at
+    }
+    reconciliationCases["reconciliation_cases"] {
+        uuid id PK
+        uuid payout_id FK
+        text provider_id
+        text reason
+        timestamptz resolved_at
+        timestamptz created_at
+    }
+    outbox["outbox"] {
+        uuid id PK
+        text event_key UK
+        text kind
+        jsonb payload
+        text status
+        integer attempts
+        timestamptz available_at
+        timestamptz claimed_at
+    }
+    users ||--o{ paymentDestinations : "user_id"
+    users ||--o| wallets : "user_id"
+    users ||--o{ payoutRequests : "user_id"
+    paymentDestinations ||--o{ payoutRequests : "destination_id"
+    users ||--o{ payoutBatches : "approved_by"
+    payoutRequests ||--o| payoutBatchItems : "payout_id"
+    payoutBatches ||--o{ payoutBatchItems : "batch_id"
+    payoutRequests ||--o{ payoutAttempts : "payout_id"
+    payoutRequests o|..o{ reconciliationCases : "payout_id"

@@ -1,0 +1,43 @@
+{
+  "name": "sparksviu",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build --webpack",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_ENV=test tsx --test tests/*.test.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "seed:demo": "tsx scripts/seed.ts",
+    "admin:create": "tsx scripts/admin.ts",
+    "worker": "tsx scripts/worker.ts",
+    "check:production": "tsx scripts/preflight.ts"
+  },
+  "dependencies": {
+    "json-bigint": "1.0.0",
+    "next": "16.4.2",
+    "nodemailer": "10.2.1",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tsx": "4.23.15",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "@types/json-bigint": "^1.0.0",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^7.0.0",
+    "@types/pg": "^8.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "playwright": "^1.64.1",
+    "prettier": "^3.9.10",
+    "typescript": "5.9.3"
+  },
+  "type": "module"
+}

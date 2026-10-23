@@ -1,0 +1,73 @@
+name: sparksviu
+x-app: &app
+  build: .
+  image: sparksviu:local
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql://sparksviu:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/sparksviu
+    NODE_ENV: production
+    STORAGE_DIR: /app/storage
+  volumes:
+    - uploads:/app/storage
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  depends_on:
+    db:
+      condition: service_healthy
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sparksviu
+      POSTGRES_USER: sparksviu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U sparksviu -d sparksviu"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: [no-new-privileges:true]
+  migrate:
+    <<: *app
+    restart: "no"
+    command: [node, node_modules/tsx/dist/cli.mjs, scripts/migrate.ts]
+  web:
+    <<: *app
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    expose: ["3000"]
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  worker:
+    <<: *app
+    command:
+      [
+        sh,
+        -c,
+        "node node_modules/tsx/dist/cli.mjs scripts/preflight.ts && exec node node_modules/tsx/dist/cli.mjs scripts/worker.ts",
+      ]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  postgres:
+  uploads:

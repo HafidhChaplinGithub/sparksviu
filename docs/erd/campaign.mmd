@@ -1,0 +1,112 @@
+erDiagram
+    direction LR
+    users["users"] {
+        uuid id PK
+        text email UK
+        text name
+        text password_hash
+        text role
+        timestamptz email_verified_at
+        timestamptz disabled_at
+        text totp_secret
+    }
+    films["films"] {
+        uuid id PK
+        text title
+        text studio
+        text genre
+        date release_date
+    }
+    campaigns["campaigns"] {
+        uuid id PK
+        uuid film_id FK
+        text slug UK
+        uuid created_by FK
+        text title
+        text brief
+        text phase
+        text platforms
+        text status
+        integer quota
+    }
+    campaignRules["campaign_rules"] {
+        uuid id PK
+        uuid campaign_id FK
+        integer version
+        jsonb config
+        timestamptz created_at
+    }
+    campaignAssets["campaign_assets"] {
+        uuid id PK
+        uuid campaign_id FK
+        text storage_key UK
+        integer version
+        text name
+        text mime
+        integer size
+        timestamptz embargo_at
+        text rights_note
+    }
+    participations["participations"] {
+        uuid id PK
+        uuid campaign_id FK
+        uuid user_id FK
+        uuid rule_id FK
+        text platform
+        text status
+        bigint reserve_amount
+        timestamptz expires_at
+        timestamptz created_at
+    }
+    submissions["submissions"] {
+        uuid id PK
+        uuid participation_id FK, UK
+        uuid user_id FK
+        uuid campaign_id FK
+        text post_key UK
+        text platform
+        text url
+        text status
+        timestamptz created_at
+    }
+    submissionRevisions["submission_revisions"] {
+        uuid id PK
+        uuid submission_id FK
+        text url
+        text note
+        timestamptz created_at
+    }
+    evidenceFiles["evidence_files"] {
+        uuid id PK
+        uuid submission_id FK
+        uuid user_id FK
+        text storage_key UK
+        text name
+        text mime
+        integer size
+        timestamptz created_at
+    }
+    reviewDecisions["review_decisions"] {
+        uuid id PK
+        uuid submission_id FK
+        uuid reviewer_id FK
+        text decision
+        text reason
+        timestamptz created_at
+    }
+    films ||--o{ campaigns : "film_id"
+    users ||--o{ campaigns : "created_by"
+    campaigns ||--o{ campaignRules : "campaign_id"
+    campaigns ||--o{ campaignAssets : "campaign_id"
+    campaigns ||--o{ participations : "campaign_id"
+    users ||--o{ participations : "user_id"
+    campaignRules ||--o{ participations : "rule_id"
+    participations ||--o| submissions : "participation_id"
+    users ||--o{ submissions : "user_id"
+    campaigns ||--o{ submissions : "campaign_id"
+    submissions ||--o{ submissionRevisions : "submission_id"
+    submissions ||--o{ evidenceFiles : "submission_id"
+    users ||--o{ evidenceFiles : "user_id"
+    submissions ||--o{ reviewDecisions : "submission_id"
+    users ||--o{ reviewDecisions : "reviewer_id"
+    campaignRules o|..o{ campaigns : "current_rule_id"

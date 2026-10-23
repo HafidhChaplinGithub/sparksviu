@@ -1,0 +1,40 @@
+erDiagram
+    direction LR
+    users["users"] {
+        uuid id PK
+        text email UK
+        text name
+        text password_hash
+        text role
+        timestamptz email_verified_at
+        timestamptz disabled_at
+        text totp_secret
+    }
+    notifications["notifications"] {
+        uuid id PK
+        uuid user_id FK
+        text title
+        text message
+        timestamptz read_at
+        timestamptz created_at
+    }
+    auditEvents["audit_events"] {
+        uuid id PK
+        uuid actor_id FK
+        text action
+        uuid object_id
+        jsonb detail
+        timestamptz created_at
+    }
+    outbox["outbox"] {
+        uuid id PK
+        text event_key UK
+        text kind
+        jsonb payload
+        text status
+        integer attempts
+        timestamptz available_at
+        timestamptz claimed_at
+    }
+    users ||--o{ notifications : "user_id"
+    users o|..o{ auditEvents : "actor_id"

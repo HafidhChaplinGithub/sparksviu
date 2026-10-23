@@ -1,0 +1,49 @@
+erDiagram
+    direction LR
+    users["users"] {
+        uuid id PK
+        text email UK
+        text name
+        text password_hash
+        text role
+        timestamptz email_verified_at
+        timestamptz disabled_at
+        text totp_secret
+    }
+    sessions["sessions"] {
+        text id_hash PK
+        uuid user_id FK
+        timestamptz expires_at
+        timestamptz created_at
+    }
+    authTokens["auth_tokens"] {
+        text id_hash PK
+        uuid user_id FK
+        text kind
+        timestamptz expires_at
+    }
+    rateLimits["rate_limits"] {
+        text key PK
+        integer count
+        timestamptz expires_at
+    }
+    socialAccounts["social_accounts"] {
+        uuid id PK
+        uuid user_id FK
+        text platform
+        text handle
+    }
+    paymentDestinations["payment_destinations"] {
+        uuid id PK
+        uuid user_id FK
+        text bank_code
+        text account_cipher
+        text account_last4
+        text holder
+        text status
+        timestamptz verified_at
+    }
+    users ||--o{ sessions : "user_id"
+    users ||--o{ authTokens : "user_id"
+    users ||--o{ socialAccounts : "user_id"
+    users ||--o{ paymentDestinations : "user_id"

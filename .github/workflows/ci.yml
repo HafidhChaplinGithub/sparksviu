@@ -1,0 +1,42 @@
+name: Application checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test-only-ci
+          POSTGRES_DB: sparksviu_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd 'pg_isready -U test -d sparksviu_test'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://test:test-only-ci@127.0.0.1:5432/sparksviu_test
+      TEST_DATABASE_URL: postgresql://test:test-only-ci@127.0.0.1:5432/sparksviu_test
+      NEXT_TELEMETRY_DISABLED: "1"
+      FLIP_MODE: disabled
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

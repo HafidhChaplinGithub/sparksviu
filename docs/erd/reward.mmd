@@ -1,0 +1,117 @@
+erDiagram
+    direction LR
+    users["users"] {
+        uuid id PK
+        text email UK
+        text name
+        text password_hash
+        text role
+        timestamptz email_verified_at
+        timestamptz disabled_at
+        text totp_secret
+    }
+    participations["participations"] {
+        uuid id PK
+        uuid campaign_id FK
+        uuid user_id FK
+        uuid rule_id FK
+        text platform
+        text status
+        bigint reserve_amount
+        timestamptz expires_at
+        timestamptz created_at
+    }
+    submissions["submissions"] {
+        uuid id PK
+        uuid participation_id FK, UK
+        uuid user_id FK
+        uuid campaign_id FK
+        text post_key UK
+        text platform
+        text url
+        text status
+        timestamptz created_at
+    }
+    viewSnapshots["view_snapshots"] {
+        uuid id PK
+        uuid submission_id FK
+        uuid reported_by FK
+        uuid evidence_id FK
+        uuid accepted_by FK
+        bigint views
+        timestamptz captured_at
+        text status
+        text reason
+        timestamptz created_at
+    }
+    assessments["assessments"] {
+        uuid id PK
+        uuid submission_id FK
+        uuid snapshot_id FK
+        uuid reviewer_id FK
+        bigint accepted_views
+        bigint amount
+        text status
+        timestamptz objection_until
+        text reason
+        timestamptz created_at
+    }
+    disputes["disputes"] {
+        uuid id PK
+        uuid assessment_id FK, UK
+        uuid user_id FK
+        uuid resolved_by FK
+        text reason
+        text status
+        text resolution
+        timestamptz created_at
+    }
+    settlements["settlements"] {
+        uuid id PK
+        uuid submission_id FK, UK
+        uuid assessment_id FK, UK
+        uuid user_id FK
+        bigint amount
+        timestamptz release_at
+        timestamptz released_at
+        timestamptz created_at
+    }
+    wallets["wallets"] {
+        uuid user_id PK, FK
+        bigint pending
+        bigint available
+        bigint held
+        bigint paid
+    }
+    journalEntries["journal_entries"] {
+        uuid id PK
+        text event_key UK
+        uuid user_id FK
+        text kind
+        uuid reference_id
+        timestamptz created_at
+    }
+    journalLines["journal_lines"] {
+        uuid id PK
+        uuid entry_id FK
+        text bucket
+        bigint delta
+    }
+    users ||--o{ participations : "user_id"
+    participations ||--o| submissions : "participation_id"
+    users ||--o{ submissions : "user_id"
+    submissions ||--o{ viewSnapshots : "submission_id"
+    users ||--o{ viewSnapshots : "reported_by"
+    users o|..o{ viewSnapshots : "accepted_by"
+    submissions ||--o{ assessments : "submission_id"
+    viewSnapshots o|..o{ assessments : "snapshot_id"
+    users ||--o{ assessments : "reviewer_id"
+    assessments ||--o| disputes : "assessment_id"
+    users ||--o{ disputes : "user_id"
+    users o|..o{ disputes : "resolved_by"
+    submissions ||--o| settlements : "submission_id"
+    assessments ||--o| settlements : "assessment_id"
+    users ||--o{ settlements : "user_id"
+    users ||--o| wallets : "user_id"
+    users ||--o{ journalEntries : "user_id"
+    journalEntries ||--o{ journalLines : "entry_id"
