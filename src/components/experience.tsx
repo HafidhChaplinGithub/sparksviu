@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useId, type FormEvent, type ReactNode } from "react";
 import { money, date, labels, reward, type Rules } from "@/lib/domain";
+import { ManualPayout } from './manual-payout';
 type Row = Record<string, any>;
 type Field = {
   name: string;
@@ -418,7 +419,7 @@ const why = [
   ["Bikin & posting", "Gunakan materi sesuai hak dan brief film."],
   ["Kirim link", "Reviewer memeriksa posting dan bukti."],
   ["Validasi views", "Reward mengikuti tarif yang dikunci di slotmu."],
-  ["Cairkan reward", "Saldo final dikirim lewat Flip setelah persetujuan."],
+  ["Cairkan reward", "Ajukan saldo final dan pantau konfirmasi pembayaran."],
 ];
 function Home({ data }: { data: Row }) {
   const featured = data.campaigns?.[0];
@@ -1050,6 +1051,8 @@ function Payouts({ data }: { data: Row }) {
             {date(p.created_at)} · {p.id}
           </small>
           {p.provider_id && <small>ID Flip: {p.provider_id}</small>}
+          <p>Metode: {p.method==='manual'?'Transfer manual':'Flip Bisnis'}</p>
+          {(p.manual_proofs||[]).map((proof:Row)=><p key={proof.id}><a href={`/api/files/${proof.id}`}>Bukti {proof.reference}</a> · {labels[proof.status]||proof.status}</p>)}
           {p.failure_reason && (
             <div className="banner warn">{p.failure_reason}</div>
           )}
@@ -1270,8 +1273,7 @@ function Participant({ path, data }: { path: string; data: Row }) {
               <h2>Ajukan pencairan</h2>
               <p>
                 Minimum {money(data.minPayout)}, maksimum harian{" "}
-                {money(data.maxPayout)}. Pengajuan diproses setelah persetujuan
-                finance pada jadwal pembayaran.
+                {money(data.maxPayout)}. {data.payoutMode==='manual'?'Pengajuan diperiksa finance, kemudian bukti transfer wajib dikonfirmasi petugas kedua.':'Pengajuan diproses setelah persetujuan finance pada jadwal pembayaran.'}
               </p>
               {data.destinations.some((d: Row) => d.status === "verified") ? (
                 <PayoutForm data={data} />
@@ -1286,8 +1288,7 @@ function Participant({ path, data }: { path: string; data: Row }) {
               <h2>Periksa sebelum mengajukan</h2>
               <p>
                 Nomor rekening dikunci pada saat pengajuan. Selama menunggu
-                konfirmasi Flip, nominal ditahan dan tidak bisa diajukan dua
-                kali.
+                konfirmasi pembayaran, nominal ditahan dan tidak bisa diajukan dua kali.
               </p>
               <p>
                 Gangguan koneksi bukan berarti transfer gagal. Saldo
@@ -1899,8 +1900,7 @@ function Finance({ data }: { data: Row }) {
       <div
         className={`banner ${data.flipMode === "disabled" ? "warn" : "info"}`}
       >
-        Mode Flip: {data.flipMode}. Persetujuan batch mengantrekan pengiriman
-        pada jadwal worker. Periksa nominal dan rekening sebelum menyetujui.
+        {data.payoutMode==='manual'?'Pencairan manual. Persetujuan menyiapkan transfer oleh petugas; bukti wajib dikonfirmasi petugas kedua. Website tidak mengirim uang.':`Mode Flip: ${data.flipMode}. Persetujuan mengantrekan pengiriman pada jadwal worker.`}
       </div>
       <section className="card">
         <h2>Verifikasi rekening</h2>
@@ -1992,12 +1992,13 @@ function Finance({ data }: { data: Row }) {
           action="approveBatch"
           fixed={{ ids: selected }}
           label={`Setujui batch (${selected.length})`}
-          confirm={`Setujui ${selected.length} pengajuan untuk dikirim melalui Flip?`}
+          confirm={`Setujui ${selected.length} pengajuan sesuai metode yang tercatat? Transfer manual tetap memerlukan bukti dan petugas kedua.`}
           onResult={() => setSelected([])}
         />
       </section>
-      <section className="card">
-        <h2>Kasus rekonsiliasi</h2>
+      {data.allPayouts.filter((p:Row)=>p.method==='manual'&&['manual_processing','manual_review'].includes(p.status)).map((p:Row)=><ManualPayout key={p.id} payout={p as any} actorId={data.user.id} uat={data.uatMode}/>)}
+      {(data.payoutMode==='flip'||data.reconciliations.length>0)&&<section className="card">
+        <h2>Rekonsiliasi Flip</h2>
         <Table
           heads={["Waktu", "ID Flip", "Masalah"]}
           rows={data.reconciliations.map((r: Row) => [
@@ -2011,7 +2012,7 @@ function Finance({ data }: { data: Row }) {
           transaksi dengan Flip dan simpan jejak pemeriksaan sebelum tindak
           lanjut.
         </p>
-      </section>
+      </section>}
     </div>
   );
 }
@@ -2238,6 +2239,7 @@ export function Experience({
         </div>
       )}
       <main id="main">
+        {data.uatMode&&<div className="wrap"><div className="banner warn" role="note"><b>SIMULASI UAT</b> — akun, kampanye, saldo, dan bukti adalah data latihan. Jangan mengirim uang atau menggunakan rekening nyata. <Link href="/panduan">Buka panduan penggunaan</Link></div></div>}
         {["unavailable", "404", "forbidden"].includes(path) ? (
           <div className="wrap pg">
             <h1>{titleError}</h1>
@@ -2315,6 +2317,7 @@ export function Experience({
           </span>
           <nav aria-label="Informasi">
             <Link href="/bantuan">Bantuan</Link>
+            <Link href="/panduan">Panduan penggunaan</Link>
             <Link href="/syarat">Syarat</Link>
             <Link href="/kebijakan">Privasi</Link>
           </nav>

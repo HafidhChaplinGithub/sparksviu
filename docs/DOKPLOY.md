@@ -106,3 +106,11 @@ Uji restore ke staging terpisah: pulihkan DB, upload, dan kunci yang sama; pasti
 Verifikasi lokal pada repository tidak membuktikan konfigurasi server tersebut sudah benar.
 
 Referensi resmi: [Compose](https://docs.dokploy.com/docs/core/docker-compose), [Domains](https://docs.dokploy.com/docs/core/docker-compose/domains).
+
+## Rilis UAT dengan pembayaran manual
+
+Untuk tahap saat ini ikuti [UAT.md](UAT.md): lingkungan khusus UAT, PAYOUT_MODE=manual, UAT_MODE=true, Flip disabled, registrasi tertutup dan SMTP kosong. Setelah deploy, jalankan seed eksplisit di terminal web. Gunakan `/panduan` untuk tutorial tim. Jangan memakai bootstrap admin operasional pada database UAT.
+
+Sebelum upgrade, backup database dan volume upload yang ada, catat commit/image, lalu deploy migrasi 002 secara forward. Tidak ada penghapusan tabel atau volume pada migrasi itu. Pengajuan lama diberi metode Flip; pengajuan baru mengikuti PAYOUT_MODE. Jangan mengubah pengajuan Flip tidak pasti menjadi manual.
+
+Panel memiliki beberapa organisasi. Pilih organisasi yang menyimpan project **Sparksviu** sebelum membuka service **sparksviu-app**. Pergantian organisasi dapat membuat URL project mengarah ke beranda meskipun aplikasi masih berjalan; jangan membuat layanan pengganti sebelum memeriksa pilihan organisasi.

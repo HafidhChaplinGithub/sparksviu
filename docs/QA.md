@@ -39,3 +39,27 @@ Toolchain uji berada pada path terpisah, sehingga build lokal memberi peringatan
 - Persetujuan kebijakan final dan identitas pengendali data.
 
 Keberhasilan pengujian lokal dan audit sumber tidak menyatakan lingkungan produksi sudah lulus. Pendaftaran dan Flip tetap disabled secara default sampai release gates diselesaikan.
+
+## Pembaruan UAT dan manual payout — 25 Oktober 2026
+
+Hasil berikut berasal dari source perubahan manual/UAT/tutorial pada baseline `61c1c34d`. Bukti rinci dipisahkan dari repository, tanpa kredensial atau dokumen bank nyata.
+
+| Pemeriksaan perubahan | Hasil lokal |
+| --- | --- |
+| TypeScript dan build Next.js produksi | Lulus |
+| Domain dan integrasi PostgreSQL | 19/19 lulus |
+| Browser UAT | 113 langkah lulus, 13 akun berhasil login; akses setiap role dan penolakan lintas role diperiksa |
+| Alur reward berkelanjutan | CPM 40.000 views → reward Rp80.000 → keberatan reviewer independen → settlement → release |
+| Alur manual | Pengajuan Rp50.000 → held → bukti Finance 1 → konfirmasi Finance 2 → paid; held nol, tidak ada job provider |
+| File bukti manual | Pemilik dapat membaca; kreator lain dan ops ditolak; pengunggah tidak dapat konfirmasi sendiri |
+| Seed | 5 kreator, 2 ops, 2 reviewer, 2 finance, 2 superadmin; pengulangan tidak mengganti kredensial/saldo |
+| Preflight | UAT valid diterima; mode data campuran dan SMTP di UAT ditolak |
+| Panduan web | 7 artikel, 24 gambar dimuat beserta SVG penanda klik; pencarian/filter, perbesar gambar, 404, desktop dan ponsel lulus |
+| Privasi screenshot | 24 gambar diperiksa, termasuk pemeriksaan ulang tiga gambar setelah copy manual diperbaiki |
+| Audit delta | Profil standard, 3 unit perubahan + batas terdampak; 11 unit audit awal tetap tercatat di luar scope delta |
+
+Uji browser lokal mempercepat masa keberatan dan masa tunggu **hanya pada database disposable `sv_uat_browser`**. Fungsi settlement/release aplikasi tetap dijalankan; logika tidak ditiru dengan perubahan saldo langsung. Saldo awal UAT Rp250.000 per kreator berasal dari jurnal fixture tersendiri dan dibedakan dari reward Rp80.000 yang diperoleh sepanjang alur. Situs yang dideploy tetap memakai tenggat asli 48 jam dan 24 jam.
+
+Pengujian memakai cached Node 24, PostgreSQL 17 dan Playwright lokal, dengan jaringan luar mati, environment allowlist dan mount source/toolchain hanya baca. Batas browser maksimal 3 GB RAM, 2 CPU, 512 proses, file 16 MB, scratch disk 512 MB, dan 420 detik; promosi artefak mengikuti validasi descriptor/no-follow/regular-file/link-count/ukuran. Tidak ada dependency yang diunduh oleh target selama audit.
+
+Audit delta tidak menyatakan seluruh aplikasi diaudit ulang dan tidak menguji layanan live sebagai target keamanan. Tidak ada transfer bank nyata, pengiriman Flip, pengiriman email pengguna, pengambilan views API sosial atau pembacaan mutasi bank otomatis. SMTP, kebijakan final, backup off-server terjadwal, kapasitas nyata, dan integrasi Flip sandbox tetap merupakan pekerjaan operasional sebelum peluncuran umum.

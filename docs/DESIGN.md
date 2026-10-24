@@ -9,3 +9,7 @@ Font disajikan lokal melalui `public/fonts`, disertai lisensi SIL OFL. Foto, log
 Navigasi kreator tersedia di bagian bawah layar kecil. Form, tabel panjang, empty state, feedback gagal/berhasil, keyboard focus, skip link, ukuran tombol minimum 44px, dan reduced motion termasuk bagian implementasi. Tema mengikuti preferensi sistem sampai diubah melalui tombol tema.
 
 Dials kerja untuk menerjemahkan referensi: energy 3 (headline dan blok warna), rhythm 3 (hero, poster, alur dan dashboard), motion 1 (interaksi sederhana, animasi referensi dibatasi oleh reduced motion). Ini pilihan implementasi referensi, bukan preferensi global pengguna.
+
+## Panduan web
+
+`/panduan` menggunakan halaman baca berwarna krem, judul Bricolage dan teks Jakarta yang sama dengan aplikasi. Daftar artikel menggunakan baris bernomor dan filter peran. Artikel memiliki daftar isi, urutan langkah, gambar UAT aktual, penanda SVG merah berangka dan legenda klik. Pada ponsel layout menjadi satu kolom, dengan opsi memperbesar gambar tanpa memotong penanda. Keterangan tekstual tetap menjelaskan tindakan tanpa bergantung pada warna atau panah saja.

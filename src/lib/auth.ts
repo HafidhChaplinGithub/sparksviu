@@ -9,6 +9,7 @@ import {
 } from "node:crypto";
 import { cookies } from "next/headers";
 import { db, tx, audit } from "./db";
+import { uatMode } from './mode';
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function passwordHash(p: string) {
   const salt = randomBytes(16).toString("hex");
@@ -44,6 +45,8 @@ export type User = {
   role: string;
   email_verified_at: string | null;
   totp_confirmed: boolean;
+  is_demo?: boolean;
+  access_expires_at?: string | null;
 };
 export async function currentSessionHash() {
   const value = (await cookies()).get("sv_session")?.value;
@@ -53,19 +56,24 @@ export async function currentUser(): Promise<User | null> {
   const token = (await cookies()).get("sv_session")?.value;
   if (!token) return null;
   const r = await db.query(
-    "SELECT u.id,u.email,u.name,u.role,u.email_verified_at,u.totp_confirmed FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id_hash=$1 AND s.expires_at>now() AND u.disabled_at IS NULL",
-    [hash(token)],
+    "SELECT u.id,u.email,u.name,u.role,u.email_verified_at,u.totp_confirmed,u.is_demo,u.access_expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id_hash=$1 AND s.expires_at>now() AND u.disabled_at IS NULL AND (u.access_expires_at IS NULL OR u.access_expires_at>now()) AND (NOT u.is_demo OR $2)",
+    [hash(token),uatMode()],
   );
   return r.rows[0] || null;
 }
 export function requireRole(u: User | null, roles: string[]) {
   if (!u) throw Error("Silakan masuk terlebih dahulu.");
+  if (u.is_demo && !uatMode()) throw Error('Akun UAT tidak aktif di lingkungan operasional.');
   if (!roles.includes(u.role)) throw Error("Akses tidak diizinkan.");
   if (u.role !== "participant" && !u.totp_confirmed)
     throw Error(
       "Aktifkan autentikasi dua langkah di Profil sebelum mengelola data.",
     );
   return u;
+}
+export async function requireCurrentFinance(c: import('./db').SQL, user: User) {
+  const r = await c.query('SELECT id,email,name,role,email_verified_at,totp_confirmed,is_demo,access_expires_at FROM users WHERE id=$1 AND disabled_at IS NULL AND (access_expires_at IS NULL OR access_expires_at>now()) FOR SHARE',[user.id]);
+  return requireRole(r.rows[0] || null,['finance','superadmin']);
 }
 export async function setSessionCookie(token: string) {
   (await cookies()).set("sv_session", token, {
@@ -105,8 +113,8 @@ export async function authenticate(
   return tx(async (c) => {
     // The account lock orders credential revocation, factor activation and session issuance.
     const q = await c.query(
-      "SELECT * FROM users WHERE email=$1 AND disabled_at IS NULL FOR UPDATE",
-      [email],
+      "SELECT * FROM users WHERE email=$1 AND disabled_at IS NULL AND (access_expires_at IS NULL OR access_expires_at>now()) AND (NOT is_demo OR $2) FOR UPDATE",
+      [email,uatMode()],
     );
     const row = q.rows[0];
     const dummy =

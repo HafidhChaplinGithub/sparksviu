@@ -2,6 +2,7 @@ import { z } from "zod";
 import { tx, db, audit, notify, journal } from "./db";
 import { requireRole, type User } from "./auth";
 import { canonicalPost, rulesSchema, reward, maxReward } from "./domain";
+import { uatMode } from './mode';
 export const campaignSchema = z
   .object({
     title: z.string().trim().min(3).max(120),
@@ -44,7 +45,7 @@ export async function createCampaign(user: User, data: unknown) {
       [v.title, v.studio, v.genre],
     );
     const campaign = await c.query(
-      "INSERT INTO campaigns(film_id,slug,title,brief,phase,platforms,quota,budget,upload_deadline,cutoff_at,color,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id",
+      "INSERT INTO campaigns(film_id,slug,title,brief,phase,platforms,quota,budget,upload_deadline,cutoff_at,color,created_by,is_demo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id",
       [
         film.rows[0].id,
         v.slug,
@@ -58,6 +59,7 @@ export async function createCampaign(user: User, data: unknown) {
         v.cutoffAt,
         v.color,
         user.id,
+        uatMode(),
       ],
     );
     const id = campaign.rows[0].id;
@@ -134,6 +136,7 @@ export async function takeSlot(user: User, id: string, platform: string) {
     const row = r.rows[0];
     if (
       !row ||
+      row.is_demo !== uatMode() ||
       row.status !== "open" ||
       new Date(row.upload_deadline) <= new Date()
     )

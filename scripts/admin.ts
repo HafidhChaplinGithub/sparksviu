@@ -1,5 +1,6 @@
 import { db } from "../src/lib/db";
 import { passwordHash } from "../src/lib/auth";
+if(process.env.UAT_MODE==='true')throw Error('Gunakan seed:uat untuk akun latihan. Administrator nyata dibuat pada database operasional terpisah.');
 const email = process.env.ADMIN_EMAIL?.trim().toLowerCase(),
   password = process.env.ADMIN_PASSWORD;
 if (!email || !password || password.length < 14)

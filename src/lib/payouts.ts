@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import JSONbig from "json-bigint";
 import { db, tx, audit, journal, notify } from "./db";
-import { decrypt, requireRole, type User } from "./auth";
+import { decrypt, requireRole, requireCurrentFinance, type User } from "./auth";
+import { payoutMode, uatMode } from "./mode";
 const json = JSONbig({
   storeAsString: true,
   strict: true,
@@ -56,7 +57,7 @@ export async function requestPayout(
         holder: row.holder,
       };
     const p = await c.query(
-      "INSERT INTO payout_requests(user_id,destination_id,destination_snapshot,amount,request_key,provider_key) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
+      "INSERT INTO payout_requests(user_id,destination_id,destination_snapshot,amount,request_key,provider_key,method) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id",
       [
         user.id,
         destination,
@@ -64,6 +65,7 @@ export async function requestPayout(
         amount,
         key,
         `sv-${randomUUID()}`,
+        payoutMode(),
       ],
     );
     const id = p.rows[0].id;
@@ -78,32 +80,35 @@ export async function requestPayout(
 export async function approveBatch(user: User, ids: string[]) {
   requireRole(user, ["finance", "superadmin"]);
   if (!ids.length || ids.length > 100) throw Error("Pilih 1–100 pengajuan.");
-  if (process.env.FLIP_MODE !== "sandbox" && process.env.FLIP_MODE !== "live")
-    throw Error("Integrasi Flip belum diaktifkan.");
   await tx(async (c) => {
+    await requireCurrentFinance(c,user);
     const batch = await c.query(
       "INSERT INTO payout_batches(approved_by) VALUES($1) RETURNING id",
       [user.id],
     );
     for (const id of [...new Set(ids)].sort()) {
       const p = await c.query(
-        "UPDATE payout_requests SET status='approved',updated_at=now() WHERE id=$1 AND status='requested' AND user_id<>$2 RETURNING id",
+        "UPDATE payout_requests SET status=CASE WHEN method='manual' THEN 'manual_processing' ELSE 'approved' END,updated_at=now() WHERE id=$1 AND status='requested' AND user_id<>$2 RETURNING id,method",
         [id, user.id],
       );
       if (!p.rowCount)
         throw Error(
           "Pengajuan tidak dapat disetujui atau merupakan milik sendiri.",
         );
+      const method = p.rows[0].method;
+      if (method === 'flip' && !['sandbox','live'].includes(process.env.FLIP_MODE || ''))
+        throw Error('Integrasi Flip belum diaktifkan. Pengajuan Flip tidak dialihkan otomatis ke transfer manual.');
       await c.query(
         "INSERT INTO payout_batch_items(payout_id,batch_id) VALUES($1,$2)",
         [id, batch.rows[0].id],
       );
-      await c.query(
+      if (method === 'flip') await c.query(
         "INSERT INTO outbox(event_key,kind,payload) VALUES($1,'payout',$2)",
         [`payout:${id}`, JSON.stringify({ id })],
       );
       await audit(c, user.id, "payout.approved", id, {
         batch: batch.rows[0].id,
+        method,
       });
     }
   });
@@ -139,7 +144,7 @@ export async function finalizePayout(
 ) {
   await tx(async (c) => {
     const q = await c.query(
-      "SELECT * FROM payout_requests WHERE provider_id=$1 FOR UPDATE",
+      "SELECT * FROM payout_requests WHERE provider_id=$1 AND method='flip' FOR UPDATE",
       [providerId],
     );
     const p = q.rows[0];
@@ -223,6 +228,7 @@ export async function flipRequest(
   body?: URLSearchParams,
   key?: string,
 ) {
+  if (uatMode()) throw Error('Mode UAT tidak dapat menghubungi Flip.');
   if (
     !["sandbox", "live"].includes(process.env.FLIP_MODE || "") ||
     !process.env.FLIP_API_KEY
@@ -249,7 +255,7 @@ export async function flipRequest(
 }
 export async function sendPayout(id: string) {
   const q = await db.query(
-    "UPDATE payout_requests SET status='sending',updated_at=now() WHERE id=$1 AND status='approved' RETURNING *",
+    "UPDATE payout_requests SET status='sending',updated_at=now() WHERE id=$1 AND status='approved' AND method='flip' RETURNING *",
     [id],
   );
   const p = q.rows[0];
@@ -295,7 +301,7 @@ export async function sendPayout(id: string) {
 export async function reconcile(user: User, id: string) {
   requireRole(user, ["finance", "superadmin"]);
   const q = await db.query(
-    "SELECT * FROM payout_requests WHERE id=$1 AND status IN ('pending','needs_review','sending')",
+    "SELECT * FROM payout_requests WHERE id=$1 AND method='flip' AND status IN ('pending','needs_review','sending')",
     [id],
   );
   const p = q.rows[0];

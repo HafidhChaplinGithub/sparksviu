@@ -9,8 +9,9 @@ Platform kampanye kreator film berdasarkan desain **Feed Kreator**. Next.js + Po
 - Kampanye draf/publik, versi tarif CPM/tier/fixed, kuota dan reservasi budget.
 - Slot, posting/revisi, bukti privat, views manual dan review.
 - Penilaian, keberatan, settlement, pending release, saldo dan jurnal.
-- Rekening terenkripsi, verifikasi finance, pencairan, batch, adapter Flip Bisnis, callback dan rekonsiliasi.
+- Rekening terenkripsi, verifikasi finance, pencairan, batch, transfer manual dengan bukti dan konfirmasi petugas kedua, serta adapter Flip Bisnis, callback dan rekonsiliasi.
 - Notifikasi, peran staf, jejak audit dan ekspor CSV.
+- Lingkungan UAT terpisah, 13 akun contoh yang kedaluwarsa, dan tutorial web bergambar di `/panduan`.
 - Worker tahan restart untuk pekerjaan yang aman diulang, migrasi, preflight dan konfigurasi Dokploy.
 
 ## Menjalankan development
@@ -33,7 +34,7 @@ Worker dijalankan pada terminal kedua dengan environment yang sama:
 node --env-file=.env.local node_modules/tsx/dist/cli.mjs scripts/worker.ts
 ```
 
-Untuk demo **development** saja, set `ALLOW_DEMO_SEED=true`, `DEMO_PASSWORD` minimum 14 karakter, lalu jalankan seed dengan environment development. Data film/studio berlabel demo. Produksi menolak seed.
+Untuk demo **development** saja, set `ALLOW_DEMO_SEED=true`, `DEMO_PASSWORD` minimum 14 karakter, lalu jalankan seed dengan environment development. Data film/studio berlabel demo. Produksi menolak seed demo development. Seeder UAT terpisah memerlukan lingkungan latihan khusus dan opt-in eksplisit; lihat docs/UAT.md.
 
 ## Pemeriksaan
 
@@ -52,9 +53,10 @@ Audit keamanan beserta bukti sensitif tetap di luar repository. Ringkasan penguj
 ## Dokumen
 
 - [Deployment Dokploy](docs/DOKPLOY.md)
+- [UAT, akun contoh dan pembayaran manual](docs/UAT.md)
 - [Arsitektur & batas implementasi](docs/ARCHITECTURE.md)
 - [Sistem desain](docs/DESIGN.md)
-- [ERD skema fisik, 31 tabel](docs/ERD.md)
+- [ERD skema fisik, 33 tabel](docs/ERD.md)
 - [Alur operasional dan release gates](docs/OPERATIONS.md)
 
 ## Sebelum menerima pengguna/dana nyata

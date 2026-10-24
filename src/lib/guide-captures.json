@@ -1,0 +1,415 @@
+{
+  "login": {
+    "file": "login.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 720,
+        "y": 348.4375,
+        "lx": 900,
+        "ly": 258.4375,
+        "label": "Isi email akunmu."
+      },
+      {
+        "x": 720,
+        "y": 585.3125,
+        "lx": 900,
+        "ly": 495.3125,
+        "label": "Setelah mengisi kredensial, klik Masuk."
+      }
+    ]
+  },
+  "profile": {
+    "file": "profile.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 428,
+        "y": 493.96875,
+        "lx": 608,
+        "ly": 403.96875,
+        "label": "Perbarui profil dan akun sosial di sini."
+      }
+    ]
+  },
+  "campaign": {
+    "file": "campaign.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 284.25,
+        "y": 486.53125,
+        "lx": 464.25,
+        "ly": 396.53125,
+        "label": "Buka kampanye untuk membaca brief dan tarif."
+      }
+    ]
+  },
+  "claim": {
+    "file": "claim.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 316,
+        "y": 930.671875,
+        "lx": 496,
+        "ly": 840.671875,
+        "label": "Ambil slot setelah memahami ketentuan."
+      }
+    ]
+  },
+  "submission": {
+    "file": "submission.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 550.25,
+        "lx": 729,
+        "ly": 460.25,
+        "label": "Masukkan URL posting asli."
+      },
+      {
+        "x": 254.5,
+        "y": 767.578125,
+        "lx": 434.5,
+        "ly": 677.578125,
+        "label": "Kirim karya ke reviewer."
+      }
+    ]
+  },
+  "evidence": {
+    "file": "evidence.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 604.546875,
+        "lx": 729,
+        "ly": 514.546875,
+        "label": "Pilih bukti milik posting ini."
+      },
+      {
+        "x": 232.5,
+        "y": 691.6875,
+        "lx": 412.5,
+        "ly": 601.6875,
+        "label": "Unggah bukti privat."
+      }
+    ]
+  },
+  "review": {
+    "file": "review.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 662.046875,
+        "lx": 729,
+        "ly": 572.046875,
+        "label": "Pilih hasil pemeriksaan karya."
+      },
+      {
+        "x": 263.5,
+        "y": 854.234375,
+        "lx": 443.5,
+        "ly": 764.234375,
+        "label": "Simpan keputusan beserta alasan."
+      }
+    ]
+  },
+  "views": {
+    "file": "views.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 923.5,
+        "lx": 729,
+        "ly": 833.5,
+        "label": "Isi views sesuai bukti."
+      }
+    ]
+  },
+  "validate-views": {
+    "file": "validate-views.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 568,
+        "y": 762.84375,
+        "lx": 748,
+        "ly": 672.84375,
+        "label": "Terima atau tolak snapshot."
+      },
+      {
+        "x": 267.5,
+        "y": 955.03125,
+        "lx": 447.5,
+        "ly": 865.03125,
+        "label": "Simpan validasi views."
+      }
+    ]
+  },
+  "review-assessment": {
+    "file": "review-assessment.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 781.84375,
+        "lx": 729,
+        "ly": 691.84375,
+        "label": "Pilih snapshot valid pada cutoff."
+      },
+      {
+        "x": 288.5,
+        "y": 974.03125,
+        "lx": 468.5,
+        "ly": 884.03125,
+        "label": "Terbitkan penilaian yang dihitung sistem."
+      }
+    ]
+  },
+  "assessment": {
+    "file": "assessment.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 274,
+        "y": 755.3125,
+        "lx": 454,
+        "ly": 665.3125,
+        "label": "Ajukan keberatan sebelum batas 48 jam bila perlu."
+      }
+    ]
+  },
+  "dispute": {
+    "file": "dispute.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 626.65625,
+        "lx": 729,
+        "ly": 536.65625,
+        "label": "Reviewer berbeda menentukan hasil keberatan."
+      },
+      {
+        "x": 270.5,
+        "y": 818.84375,
+        "lx": 450.5,
+        "ly": 728.84375,
+        "label": "Simpan penyelesaian beserta alasan."
+      }
+    ]
+  },
+  "earnings": {
+    "file": "earnings.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 567.3046875,
+        "y": 252.984375,
+        "lx": 747.3046875,
+        "ly": 162.984375,
+        "label": "Lihat saldo dan jurnal reward; saldo awal UAT bersifat simulasi."
+      }
+    ]
+  },
+  "withdrawal": {
+    "file": "withdrawal.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 428,
+        "y": 767.578125,
+        "lx": 608,
+        "ly": 677.578125,
+        "label": "Isi nominal yang akan ditahan."
+      },
+      {
+        "x": 255,
+        "y": 827.078125,
+        "lx": 435,
+        "ly": 737.078125,
+        "label": "Ajukan pencairan ke rekening terverifikasi."
+      }
+    ]
+  },
+  "finance-approve": {
+    "file": "finance-approve.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 195,
+        "y": 867.984375,
+        "lx": 375,
+        "ly": 777.984375,
+        "label": "Pilih pengajuan yang sudah diperiksa."
+      }
+    ]
+  },
+  "manual-proof": {
+    "file": "manual-proof.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 720,
+        "y": 500.390625,
+        "lx": 900,
+        "ly": 410.390625,
+        "label": "Catat referensi transfer, waktu, bukti dan catatan."
+      },
+      {
+        "x": 270.5,
+        "y": 817.953125,
+        "lx": 450.5,
+        "ly": 727.953125,
+        "label": "Simpan bukti; dana masih ditahan."
+      }
+    ]
+  },
+  "manual-confirm": {
+    "file": "manual-confirm.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 720,
+        "y": 650.484375,
+        "lx": 900,
+        "ly": 560.484375,
+        "label": "Catat hasil pencocokan oleh petugas kedua."
+      },
+      {
+        "x": 451,
+        "y": 732.484375,
+        "lx": 631,
+        "ly": 642.484375,
+        "label": "Konfirmasi hanya setelah bukti dan mutasi cocok."
+      }
+    ]
+  },
+  "payout-history": {
+    "file": "payout-history.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 266.5,
+        "y": 529.734375,
+        "lx": 446.5,
+        "ly": 439.734375,
+        "label": "Unduh bukti dari riwayat pengajuan sendiri."
+      }
+    ]
+  },
+  "campaign-editor": {
+    "file": "campaign-editor.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 533.96875,
+        "lx": 729,
+        "ly": 443.96875,
+        "label": "Isi film, brief, tenggat, budget, kuota dan tarif."
+      }
+    ]
+  },
+  "campaign-publish": {
+    "file": "campaign-publish.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 925.828125,
+        "lx": 729,
+        "ly": 835.828125,
+        "label": "Pilih status kampanye."
+      }
+    ]
+  },
+  "campaign-assets": {
+    "file": "campaign-assets.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 800.8125,
+        "lx": 729,
+        "ly": 710.8125,
+        "label": "Jelaskan hak dan embargo materi."
+      },
+      {
+        "x": 232.5,
+        "y": 896.8125,
+        "lx": 412.5,
+        "ly": 806.8125,
+        "label": "Unggah materi berlisensi."
+      }
+    ]
+  },
+  "finance-bank": {
+    "file": "finance-bank.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 720,
+        "y": 781.5859375,
+        "lx": 900,
+        "ly": 691.5859375,
+        "label": "Akses nomor lengkap hanya saat perlu, dengan alasan tercatat."
+      }
+    ]
+  },
+  "users": {
+    "file": "users.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 549,
+        "y": 546.96875,
+        "lx": 729,
+        "ly": 456.96875,
+        "label": "Kelola peran staf sesuai tugasnya."
+      }
+    ]
+  },
+  "audit": {
+    "file": "audit.png",
+    "width": 1440,
+    "height": 1000,
+    "marks": [
+      {
+        "x": 720,
+        "y": 264.984375,
+        "lx": 900,
+        "ly": 174.984375,
+        "label": "Periksa jejak perubahan dan pelaku tindakan."
+      }
+    ]
+  }
+}

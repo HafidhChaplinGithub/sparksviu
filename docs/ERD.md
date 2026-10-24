@@ -448,3 +448,44 @@ erDiagram
 - Tiap jurnal harus seimbang; mutasi saldo dan jurnal terjadi dalam transaksi yang sama.
 - Relasi FK diagram tidak menggantikan pemeriksaan ownership dan peran pada layanan.
 - `schema_migrations` dikelola runner migrasi dan tidak termasuk domain produk.
+
+## Pencairan manual dan isolasi UAT (migrasi 002)
+
+Skema kini memiliki 33 tabel domain, di luar `schema_migrations`. `users.is_demo` dan `campaigns.is_demo` membedakan fixture; `users.access_expires_at` membatasi akses UAT. Preflight menolak pencampuran mode dalam satu database.
+
+```mermaid
+erDiagram
+    users ||--o{ payout_requests : menerima
+    payout_requests ||--o{ manual_transfer_references : mengikat
+    payout_requests ||--o{ manual_payout_proofs : memiliki
+    manual_transfer_references ||--o{ manual_payout_proofs : referensi
+    users ||--o{ manual_payout_proofs : recorded_by
+    users o|--o{ manual_payout_proofs : reviewed_by
+    payout_requests {
+        uuid id PK
+        uuid user_id FK
+        text method "manual atau flip; dikunci saat pengajuan"
+        bigint amount
+        text status
+        jsonb destination_snapshot
+    }
+    manual_transfer_references {
+        text reference PK
+        uuid payout_id FK
+    }
+    manual_payout_proofs {
+        uuid id PK
+        uuid payout_id FK
+        text reference FK
+        bigint amount
+        timestamptz paid_at
+        uuid recorded_by FK
+        uuid reviewed_by FK
+        text status "submitted confirmed rejected"
+        text storage_key UK
+        text note
+        text review_note
+    }
+```
+
+Metode manual: `requested → manual_processing → manual_review → succeeded`. Bukti ditolak mengembalikan pengajuan ke `manual_processing`, tanpa refund atau transfer ulang otomatis. Hanya `requested` yang dapat dibatalkan peserta. Satu bukti aktif per pengajuan, satu referensi bank untuk satu pengajuan, pengunggah berbeda dari pengonfirmasi, serta finalisasi saldo dan jurnal berlangsung atomik. Metode Flip tetap memakai state machine sebelumnya; kedua transport tidak saling mengonversi pengajuan.

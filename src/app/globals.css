@@ -1,6 +1,9 @@
 [hidden] {
   display: none !important;
 }
+.manual-payout .form { margin:22px 0; }
+.manual-payout h4 { margin:15px 0; }
+.manual-payout .actions { display:flex;flex-wrap:wrap;gap:12px; }
 body {
   margin: 0;
 }

@@ -22,6 +22,7 @@ import {
 import { rulesSchema } from "./domain";
 import * as campaigns from "./campaigns";
 import * as payouts from "./payouts";
+import { inspectPayoutDestination, reviewManualProof } from './manual-payouts';
 const id = z.uuid();
 const text = z.string().trim().min(1).max(2000);
 const reason = z.string().trim().min(10).max(2000);
@@ -331,6 +332,15 @@ export async function command(action: string, input: unknown) {
       const v = strict({ id }).parse(input);
       await payouts.reconcile(u, v.id);
       break;
+    }
+    case 'inspectPayoutDestination': {
+      const v = strict({ id, reason }).parse(input);
+      return { destination: await inspectPayoutDestination(u,v.id,v.reason), message:'Tujuan dari snapshot pengajuan. Akses dicatat.' };
+    }
+    case 'reviewManualProof': {
+      const v = strict({ id, approved:z.boolean(), reason }).parse(input);
+      await reviewManualProof(u,v.id,v.approved,v.reason);
+      return { message:v.approved?'Pembayaran dikonfirmasi oleh petugas kedua.':'Bukti ditolak. Saldo tetap ditahan sampai pemeriksaan selesai.' };
     }
     case "readNotifications":
       await db.query(

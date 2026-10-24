@@ -10,16 +10,18 @@ export async function GET() {
   try {
     const u = requireRole(await currentUser(), ["finance", "superadmin"]);
     const q = await db.query(
-      "SELECT p.id,u.name,p.amount,p.status,p.provider_id,p.created_at FROM payout_requests p JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 10000",
+      "SELECT p.id,u.name,p.amount,p.status,p.method,p.provider_id,p.created_at,(SELECT m.reference FROM manual_payout_proofs m WHERE m.payout_id=p.id AND m.status='confirmed') AS manual_reference FROM payout_requests p JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 10000",
     );
     const lines = [
-      ["ID", "Peserta", "Nominal IDR", "Status", "ID Flip", "Waktu"],
+      ["ID", "Peserta", "Nominal IDR", "Status", "Metode", "ID Flip", "Referensi manual", "Waktu"],
       ...q.rows.map((p) => [
         p.id,
         p.name,
         p.amount,
         p.status,
+        p.method,
         p.provider_id,
+        p.manual_reference,
         new Date(p.created_at).toISOString(),
       ]),
     ]

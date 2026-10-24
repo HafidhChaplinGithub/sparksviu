@@ -1,4 +1,10 @@
+export {};
 const issues: string[] = [];
+if (process.env.UAT_MODE === 'true' && (process.env.REGISTRATION_ENABLED === 'true' || process.env.SMTP_HOST || !['disabled',undefined,''].includes(process.env.FLIP_MODE)))
+  issues.push('UAT wajib menutup registrasi, SMTP, dan Flip. Gunakan database khusus UAT.');
+if (process.env.UAT_MODE === 'true' && process.env.PAYOUT_MODE !== 'manual')
+  issues.push('UAT menggunakan PAYOUT_MODE=manual.');
+if (process.env.PAYOUT_MODE && !['manual','flip'].includes(process.env.PAYOUT_MODE)) issues.push('PAYOUT_MODE tidak valid.');
 if (!process.env.DATABASE_URL) issues.push("DATABASE_URL wajib diisi.");
 if (!process.env.APP_URL?.startsWith("https://"))
   issues.push("APP_URL produksi harus HTTPS.");
@@ -23,6 +29,12 @@ if (issues.length) {
   console.error(issues.join("\n"));
   process.exit(1);
 }
+const {db}=await import('../src/lib/db');
+try {
+  const uat=process.env.UAT_MODE==='true';
+  const q=await db.query('SELECT EXISTS(SELECT 1 FROM users WHERE is_demo<>$1) OR EXISTS(SELECT 1 FROM campaigns WHERE is_demo<>$1) AS mixed',[uat]);
+  if(q.rows[0].mixed) throw Error('Mode database tidak sesuai. Pisahkan database UAT dan operasional; jangan mencampur data latihan dengan akun nyata.');
+}finally {await db.end();}
 console.log(
   "Konfigurasi dasar valid. Tetap lakukan UAT sandbox Flip dan pemeriksaan operasional sebelum peluncuran.",
 );

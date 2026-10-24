@@ -1,9 +1,11 @@
 import { db } from "./db";
 import { currentUser, requireRole } from "./auth";
+import { payoutMode, uatMode } from './mode';
 export async function publicCampaigns() {
   return (
     await db.query(
-      "SELECT c.id,c.slug,c.title,c.brief,c.phase,c.platforms,c.status,c.quota,c.upload_deadline,c.cutoff_at,c.color,c.created_at,f.studio,f.genre,r.config AS rules,(SELECT count(*) FROM participations p WHERE p.campaign_id=c.id AND p.status NOT IN ('expired','rejected')) AS filled FROM campaigns c JOIN films f ON f.id=c.film_id JOIN campaign_rules r ON r.id=c.current_rule_id WHERE c.status<>'draft' ORDER BY c.created_at DESC LIMIT 100",
+      "SELECT c.id,c.slug,c.title,c.brief,c.phase,c.platforms,c.status,c.quota,c.upload_deadline,c.cutoff_at,c.color,c.created_at,c.is_demo,f.studio,f.genre,r.config AS rules,(SELECT count(*) FROM participations p WHERE p.campaign_id=c.id AND p.status NOT IN ('expired','rejected')) AS filled FROM campaigns c JOIN films f ON f.id=c.film_id JOIN campaign_rules r ON r.id=c.current_rule_id WHERE c.status<>'draft' AND c.is_demo=$1 ORDER BY c.created_at DESC LIMIT 100",
+      [uatMode()],
     )
   ).rows;
 }
@@ -20,6 +22,8 @@ export async function pageData(path: string) {
     supportEmail: process.env.SUPPORT_EMAIL || "",
     policiesApproved: process.env.POLICIES_APPROVED === "true",
     flipMode: process.env.FLIP_MODE || "disabled",
+    payoutMode: payoutMode(),
+    uatMode: uatMode(),
     minPayout: Number(process.env.MIN_PAYOUT_IDR || 50000),
     maxPayout: Number(process.env.MAX_DAILY_PAYOUT_IDR || 500000),
   };
@@ -37,7 +41,7 @@ export async function pageData(path: string) {
   )
     return {
       ...base,
-      accessDenied: !user.totp_confirmed
+      accessDenied: ["ops", "reviewer", "superadmin"].includes(user.role) && !user.totp_confirmed
         ? "Aktifkan autentikator di Profil untuk membuka dashboard staf."
         : "Peran akun tidak memiliki akses operasional.",
     };
@@ -47,7 +51,7 @@ export async function pageData(path: string) {
   )
     return {
       ...base,
-      accessDenied: !user.totp_confirmed
+      accessDenied: ["finance", "superadmin"].includes(user.role) && !user.totp_confirmed
         ? "Aktifkan autentikator di Profil untuk membuka dashboard staf."
         : "Peran akun tidak memiliki akses finance.",
     };
@@ -83,7 +87,7 @@ export async function pageData(path: string) {
       [user.id],
     ),
     db.query(
-      "SELECT id,amount,status,destination_snapshot-'account_cipher' AS destination_snapshot,provider_id,failure_reason,created_at FROM payout_requests WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100",
+      "SELECT p.id,p.amount,p.status,p.method,p.destination_snapshot-'account_cipher' AS destination_snapshot,p.provider_id,p.failure_reason,p.created_at,(SELECT jsonb_agg(jsonb_build_object('id',m.id,'reference',m.reference,'status',m.status,'paid_at',m.paid_at,'review_note',m.review_note) ORDER BY m.created_at DESC) FROM manual_payout_proofs m WHERE m.payout_id=p.id) AS manual_proofs FROM payout_requests p WHERE p.user_id=$1 ORDER BY p.created_at DESC LIMIT 100",
       [user.id],
     ),
     db.query(
@@ -144,7 +148,7 @@ export async function pageData(path: string) {
   if (path.startsWith("finance")) {
     requireRole(user, ["finance", "superadmin"]);
     const allPayouts = await db.query(
-      "SELECT p.id,p.user_id,p.amount,p.status,p.provider_id,p.failure_reason,p.created_at,p.destination_snapshot-'account_cipher' AS destination_snapshot,u.name FROM payout_requests p JOIN users u ON u.id=p.user_id ORDER BY CASE p.status WHEN 'requested' THEN 0 WHEN 'needs_review' THEN 1 WHEN 'sending' THEN 2 WHEN 'pending' THEN 3 ELSE 4 END,p.created_at DESC LIMIT 200",
+      "SELECT p.id,p.user_id,p.amount,p.status,p.method,p.provider_id,p.failure_reason,p.created_at,p.destination_snapshot-'account_cipher' AS destination_snapshot,u.name,(SELECT jsonb_agg(jsonb_build_object('id',m.id,'reference',m.reference,'amount',m.amount,'status',m.status,'paid_at',m.paid_at,'recorded_by',m.recorded_by,'note',m.note,'review_note',m.review_note) ORDER BY m.created_at DESC) FROM manual_payout_proofs m WHERE m.payout_id=p.id) AS manual_proofs FROM payout_requests p JOIN users u ON u.id=p.user_id ORDER BY CASE p.status WHEN 'requested' THEN 0 WHEN 'manual_review' THEN 1 WHEN 'manual_processing' THEN 2 WHEN 'needs_review' THEN 3 ELSE 4 END,p.created_at DESC LIMIT 200",
     );
     const pendingDestinations = await db.query(
       "SELECT d.id,d.user_id,d.bank_code,d.account_last4,d.holder,d.status,u.name FROM payment_destinations d JOIN users u ON u.id=d.user_id WHERE d.status='pending' ORDER BY d.created_at LIMIT 100",

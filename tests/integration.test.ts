@@ -1,6 +1,6 @@
 import { test, after, before } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { db } from "../src/lib/db";
 import {
@@ -40,7 +40,8 @@ before(async () => {
   if (process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL)
     throw Error("Test DB guard mismatch.");
   process.env.ENCRYPTION_KEY = Buffer.alloc(32, 3).toString("base64");
-  await db.query(await readFile("migrations/001_core.sql", "utf8"));
+  process.env.PAYOUT_MODE='flip';
+  for(const file of (await readdir('migrations')).filter(n=>n.endsWith('.sql')).sort())await db.query(await readFile(`migrations/${file}`,'utf8'));
   admin = await user("admin@example.test", "superadmin");
   creator = await user("creator@example.test", "participant");
   other = await user("other@example.test", "participant");
@@ -649,4 +650,79 @@ test("worker dispatch binds form amount, destination and stable key; repeated di
   ).rows[0];
   assert.equal(Number(wallet.available), 80000);
   assert.equal(Number(wallet.held), 0);
+});
+
+test('manual payout holds funds, never creates a provider job, and needs a different confirmer', async () => {
+  const {approveBatch,sendPayout}=await import('../src/lib/payouts');
+  const {recordManualProof,reviewManualProof,inspectPayoutDestination}=await import('../src/lib/manual-payouts');
+  process.env.PAYOUT_MODE='manual';process.env.FLIP_MODE='disabled';
+  const owner=await user('manual-owner@example.test','participant');
+  const clerk=await user('manual-clerk@example.test','finance');
+  const checker=await user('manual-checker@example.test','finance');
+  await db.query('INSERT INTO wallets(user_id,available) VALUES($1,150000)',[owner.id]);
+  const d=await db.query("INSERT INTO payment_destinations(user_id,bank_code,account_cipher,account_last4,holder,status,verified_at) VALUES($1,'bca',$2,'0011','SIMULASI PEMILIK','verified',now()-interval '48 hours') RETURNING id",[owner.id,encrypt('0000000011')]);
+  const p=await requestPayout(owner,d.rows[0].id,60000,randomUUID());
+  await assert.rejects(()=>approveBatch(owner,[p.id]));
+  await approveBatch(clerk,[p.id]);
+  assert.equal((await db.query('SELECT status FROM payout_requests WHERE id=$1',[p.id])).rows[0].status,'manual_processing');
+  assert.equal((await db.query("SELECT 1 FROM outbox WHERE event_key=$1",[`payout:${p.id}`])).rowCount,0);
+  const oldFetch=globalThis.fetch;globalThis.fetch=async()=>{throw Error('manual must not use network')};
+  try {await sendPayout(p.id);}finally{globalThis.fetch=oldFetch;}
+  assert.equal((await inspectPayoutDestination(clerk,p.id,'Pencocokan fixture manual')).account,'0000000011');
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1eEAAAAASUVORK5CYII=','base64');
+  const input={reference:'TEST-MANUAL-ONE',amount:60000,paidAt:new Date().toISOString(),note:'SIMULASI: nominal dan rekening sudah cocok.'};
+  await assert.rejects(()=>recordManualProof(owner,p.id,input,png,'SIMULASI.png'));
+  await assert.rejects(()=>recordManualProof(clerk,p.id,{...input,amount:50000},png,'SIMULASI.png'));
+  const results=await Promise.allSettled([recordManualProof(clerk,p.id,input,png,'SIMULASI.png'),recordManualProof(clerk,p.id,input,png,'SIMULASI.png')]);
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  const proof=(await db.query('SELECT id FROM manual_payout_proofs WHERE payout_id=$1',[p.id])).rows[0].id;
+  await assert.rejects(()=>reviewManualProof(clerk,proof,true,'Tidak boleh menyetujui bukti sendiri.'));
+  const done=await Promise.allSettled([reviewManualProof(checker,proof,true,'Fixture bank dan bukti sudah cocok.'),reviewManualProof(admin,proof,true,'Pemeriksa independen kedua pada balapan.')]);
+  assert.equal(done.filter(r=>r.status==='fulfilled').length,1);
+  const w=(await db.query('SELECT * FROM wallets WHERE user_id=$1',[owner.id])).rows[0];
+  assert.equal(Number(w.available),90000);assert.equal(Number(w.held),0);assert.equal(Number(w.paid),60000);
+  assert.equal((await db.query('SELECT 1 FROM journal_entries WHERE event_key=$1',[`payout-final:${p.id}`])).rowCount,1);
+  await finalizePayout('9876543210999999999',{status:'DONE',amount:60000,bank_code:'bca',account_number:'0000000011'},'manual-isolation');
+  assert.equal(Number((await db.query('SELECT paid FROM wallets WHERE user_id=$1',[owner.id])).rows[0].paid),60000);
+});
+
+test('rejected manual proof keeps the hold and permits correction with the same bank reference', async()=>{
+  const {approveBatch}=await import('../src/lib/payouts');
+  const {recordManualProof,reviewManualProof}=await import('../src/lib/manual-payouts');
+  process.env.PAYOUT_MODE='manual';
+  const owner=(await db.query("SELECT * FROM users WHERE email='manual-owner@example.test'")).rows[0] as User;
+  const clerk=(await db.query("SELECT * FROM users WHERE email='manual-clerk@example.test'")).rows[0] as User;
+  const checker=(await db.query("SELECT * FROM users WHERE email='manual-checker@example.test'")).rows[0] as User;
+  const destination=(await db.query('SELECT id FROM payment_destinations WHERE user_id=$1',[owner.id])).rows[0].id;
+  const p=await requestPayout(owner,destination,50000,randomUUID());await approveBatch(clerk,[p.id]);
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1eEAAAAASUVORK5CYII=','base64');
+  const input={reference:'TEST-CORRECTION',amount:50000,paidAt:new Date().toISOString(),note:'Bukti simulasi untuk pengujian koreksi.'};
+  const first=await recordManualProof(clerk,p.id,input,png,'SIMULASI.png');
+  await reviewManualProof(checker,first.id,false,'Gambar simulasi perlu diperjelas.');
+  assert.equal(Number((await db.query('SELECT held FROM wallets WHERE user_id=$1',[owner.id])).rows[0].held),50000);
+  const next=await recordManualProof(clerk,p.id,input,png,'SIMULASI-KOREKSI.png');
+  await db.query("UPDATE users SET role='participant' WHERE id=$1",[checker.id]);
+  await assert.rejects(()=>reviewManualProof(checker,next.id,true,'Snapshot peran lama tidak cukup.'));
+  await db.query("UPDATE users SET role='finance' WHERE id=$1",[checker.id]);
+  await reviewManualProof(checker,next.id,true,'Referensi sama, bukti koreksi sesuai.');
+  assert.equal(Number((await db.query('SELECT paid FROM wallets WHERE user_id=$1',[owner.id])).rows[0].paid),110000);
+  const another=await user('manual-duplicate-owner@example.test','participant');
+  await db.query('INSERT INTO wallets(user_id,available) VALUES($1,100000)',[another.id]);
+  const d=await db.query("INSERT INTO payment_destinations(user_id,bank_code,account_cipher,account_last4,holder,status,verified_at) VALUES($1,'bca',$2,'0022','SIMULASI DUA','verified',now()-interval '48 hours') RETURNING id",[another.id,encrypt('0000000022')]);
+  const p2=await requestPayout(another,d.rows[0].id,50000,randomUUID());await approveBatch(clerk,[p2.id]);
+  await assert.rejects(()=>recordManualProof(clerk,p2.id,{...input,reference:'test-correction',paidAt:new Date().toISOString()},png,'SIMULASI.png'));
+});
+
+test('UAT credentials cannot authenticate outside UAT or after expiry; provider is blocked in UAT',async()=>{
+  const {authenticate,passwordHash}=await import('../src/lib/auth');
+  const {flipRequest}=await import('../src/lib/payouts');
+  const password='synthetic-UAT-password-12345';
+  await db.query("INSERT INTO users(email,name,password_hash,is_demo,access_expires_at) VALUES('uat.expiry@example.test','SIMULASI EXPIRY',$1,true,now()+interval '1 hour')",[passwordHash(password)]);
+  process.env.UAT_MODE='false';await assert.rejects(()=>authenticate('uat.expiry@example.test',password,''));
+  process.env.UAT_MODE='true';assert.ok(await authenticate('uat.expiry@example.test',password,''));
+  await db.query("UPDATE users SET access_expires_at=now()-interval '1 second' WHERE email='uat.expiry@example.test'");
+  await assert.rejects(()=>authenticate('uat.expiry@example.test',password,''));
+  process.env.FLIP_MODE='live';process.env.FLIP_API_KEY='dummy-test-only';
+  await assert.rejects(()=>flipRequest('/v3/disbursement','POST'));
+  process.env.UAT_MODE='false';process.env.FLIP_MODE='disabled';
 });
