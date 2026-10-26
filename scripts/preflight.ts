@@ -1,5 +1,8 @@
 export {};
+import { demoPasswordOnlyEnabled } from '../src/lib/mode';
 const issues: string[] = [];
+if (process.env.UAT_PASSWORD_ONLY === 'true' && !demoPasswordOnlyEnabled())
+  issues.push('UAT_PASSWORD_ONLY hanya untuk UAT terpisah, PAYOUT_MODE=manual, FLIP_MODE=disabled, tanpa SMTP/registrasi.');
 if (process.env.UAT_MODE === 'true' && (process.env.REGISTRATION_ENABLED === 'true' || process.env.SMTP_HOST || !['disabled',undefined,''].includes(process.env.FLIP_MODE)))
   issues.push('UAT wajib menutup registrasi, SMTP, dan Flip. Gunakan database khusus UAT.');
 if (process.env.UAT_MODE === 'true' && process.env.PAYOUT_MODE !== 'manual')

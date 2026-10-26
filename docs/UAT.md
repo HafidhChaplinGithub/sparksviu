@@ -6,6 +6,7 @@ Gunakan database dan volume upload khusus latihan. Jangan menjalankan fixture pa
 
 ```dotenv
 UAT_MODE=true
+UAT_PASSWORD_ONLY=true
 PAYOUT_MODE=manual
 FLIP_MODE=disabled
 REGISTRATION_ENABLED=false
@@ -14,7 +15,7 @@ SMTP_HOST=
 
 Tetap gunakan HTTPS, encryption key stabil, dan password database milik lingkungan ini. `ALLOW_UAT_SEED` hanya diaktifkan pada proses seed, bukan disimpan sebagai konfigurasi layanan permanen.
 
-Di terminal **container web** setelah migrasi 002:
+Di terminal **container web** setelah migrasi 003:
 
 ```sh
 ALLOW_UAT_SEED=true node node_modules/tsx/dist/cli.mjs scripts/seed-uat.ts
@@ -22,7 +23,9 @@ ALLOW_UAT_SEED=true node node_modules/tsx/dist/cli.mjs scripts/seed-uat.ts
 
 Seed membuat **13 akun**: 5 kreator dan masing-masing 2 ops, reviewer, finance, superadmin. Nama dan email `example.test` bersifat sintetis. Setiap kreator mendapat saldo latihan Rp250.000 dengan jurnal `uat.opening`, dua akun sosial contoh dan rekening dummy. Tiga kampanye contoh mencakup CPM, tier tertinggi, dan tarif tetap. Tidak ada pengiriman uang.
 
-Password unik dan secret autentikator staf tersimpan dalam **`/app/storage/uat-credentials.json`**, izin 0600. File ini tidak dilayani endpoint web. Ambil melalui akses operator yang sah dan simpan privat; jangan masukkan ke Git, screenshot, tiket, atau panduan publik. Staf tetap wajib login dengan password dan kode TOTP. Impor secret fixture ke autentikator khusus pengujian; jangan memakai faktor akun pribadi. Akun berlaku tujuh hari; seed ulang tidak memperpanjang, mengganti password, atau menambah saldo.
+Password unik dan secret autentikator staf tersimpan dalam **`/app/storage/uat-credentials.json`**, izin 0600. File ini tidak dilayani endpoint web. Ambil melalui akses operator yang sah dan simpan privat; jangan masukkan ke Git, screenshot, tiket, atau panduan publik. Dengan UAT_PASSWORD_ONLY=true, semua akun demo yang belum kedaluwarsa cukup login dengan email dan password. Flag ini default false dan hanya aktif bila seluruh guard UAT di atas aman. Secret fixture lama tidak dihapus atau dipakai untuk login password-only. Seed baru dalam mode ini tidak membuat secret TOTP.
+
+Untuk mengembalikan kewajiban autentikator, set UAT_PASSWORD_ONLY=false lalu redeploy. Seluruh sesi yang diterbitkan sebagai uat_password langsung tidak berlaku saat flag nonaktif. Akun seed lama dapat memakai faktor lamanya; akun seed baru tanpa faktor perlu mengaktifkan TOTP lewat Profil sebelum dashboard staf dibuka. Flag ini tidak mengecualikan akun non-demo dari kewajiban TOTP. Akun berlaku tujuh hari; seed ulang tidak memperpanjang, mengganti password, atau menambah saldo.
 
 Seeder menolak data operasional dan fixture parsial. Jika kredensial hilang, jangan menjalankan reset massal; pulihkan manifest privat dari backup lingkungan UAT atau buat lingkungan latihan baru. Ini terpisah dari `seed:demo`, yang tetap menolak produksi.
 
@@ -46,6 +49,6 @@ Screenshot berasal dari browser terhadap aplikasi lokal, dengan data sintetis. J
 
 ## Beralih ke operasional
 
-Gunakan **database dan volume baru yang bersih**, bukan menghapus label fixture atau mengubah `UAT_MODE=false` pada database latihan. Jalankan migrasi, set UAT_MODE=false, PAYOUT_MODE=manual dan Flip disabled; bootstrap admin melalui prosedur operator, aktifkan TOTP, kebijakan dan SMTP sebelum membuka registrasi. Simpan lingkungan UAT terpisah jika masih diperlukan.
+Gunakan **database dan volume baru yang bersih**, bukan menghapus label fixture atau mengubah `UAT_MODE=false` pada database latihan. Jalankan migrasi, set UAT_MODE=false, UAT_PASSWORD_ONLY=false, PAYOUT_MODE=manual dan Flip disabled; bootstrap admin melalui prosedur operator, aktifkan TOTP, kebijakan dan SMTP sebelum membuka registrasi. Simpan lingkungan UAT terpisah jika masih diperlukan.
 
 Pembayaran manual berarti uang dikirim petugas melalui aplikasi bank. Website menyimpan tujuan, bukti, persetujuan kedua dan jurnal; tidak membaca mutasi bank secara otomatis. Mode Flip baru diaktifkan pada lingkungan operasional/staging setelah sandbox dan kontrak provider diverifikasi. Mengubah PAYOUT_MODE hanya memengaruhi pengajuan baru.

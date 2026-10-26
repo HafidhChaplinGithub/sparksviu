@@ -9,7 +9,7 @@ import {
 } from "node:crypto";
 import { cookies } from "next/headers";
 import { db, tx, audit } from "./db";
-import { uatMode } from './mode';
+import { demoPasswordOnlyEnabled, demoPasswordOnlyFor, uatMode } from './mode';
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function passwordHash(p: string) {
   const salt = randomBytes(16).toString("hex");
@@ -55,9 +55,12 @@ export async function currentSessionHash() {
 export async function currentUser(): Promise<User | null> {
   const token = (await cookies()).get("sv_session")?.value;
   if (!token) return null;
+  return userForSessionHash(hash(token));
+}
+export async function userForSessionHash(sessionHash: string): Promise<User | null> {
   const r = await db.query(
-    "SELECT u.id,u.email,u.name,u.role,u.email_verified_at,u.totp_confirmed,u.is_demo,u.access_expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id_hash=$1 AND s.expires_at>now() AND u.disabled_at IS NULL AND (u.access_expires_at IS NULL OR u.access_expires_at>now()) AND (NOT u.is_demo OR $2)",
-    [hash(token),uatMode()],
+    "SELECT u.id,u.email,u.name,u.role,u.email_verified_at,u.totp_confirmed,u.is_demo,u.access_expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id_hash=$1 AND s.expires_at>now() AND u.disabled_at IS NULL AND (u.access_expires_at IS NULL OR u.access_expires_at>now()) AND (NOT u.is_demo OR $2) AND (s.auth_mode<>'uat_password' OR (u.is_demo AND u.access_expires_at IS NOT NULL AND $3))",
+    [sessionHash,uatMode(),demoPasswordOnlyEnabled()],
   );
   return r.rows[0] || null;
 }
@@ -65,11 +68,14 @@ export function requireRole(u: User | null, roles: string[]) {
   if (!u) throw Error("Silakan masuk terlebih dahulu.");
   if (u.is_demo && !uatMode()) throw Error('Akun UAT tidak aktif di lingkungan operasional.');
   if (!roles.includes(u.role)) throw Error("Akses tidak diizinkan.");
-  if (u.role !== "participant" && !u.totp_confirmed)
+  if (u.role !== "participant" && !staffFactorSatisfied(u))
     throw Error(
       "Aktifkan autentikasi dua langkah di Profil sebelum mengelola data.",
     );
   return u;
+}
+export function staffFactorSatisfied(u: User) {
+  return u.totp_confirmed || demoPasswordOnlyFor(u);
 }
 export async function requireCurrentFinance(c: import('./db').SQL, user: User) {
   const r = await c.query('SELECT id,email,name,role,email_verified_at,totp_confirmed,is_demo,access_expires_at FROM users WHERE id=$1 AND disabled_at IS NULL AND (access_expires_at IS NULL OR access_expires_at>now()) FOR SHARE',[user.id]);
@@ -84,11 +90,11 @@ export async function setSessionCookie(token: string) {
     maxAge: 604800,
   });
 }
-async function insertSession(c: import("./db").SQL, user: string) {
+async function insertSession(c: import("./db").SQL, user: string, demoPasswordOnly = false) {
   const token = randomBytes(32).toString("base64url");
   await c.query(
-    "INSERT INTO sessions(id_hash,user_id,expires_at) VALUES($1,$2,now()+interval '7 days')",
-    [hash(token), user],
+    "INSERT INTO sessions(id_hash,user_id,expires_at,auth_mode) VALUES($1,$2,now()+interval '7 days',$3)",
+    [hash(token), user, demoPasswordOnly ? 'uat_password' : 'standard'],
   );
   return token;
 }
@@ -121,7 +127,8 @@ export async function authenticate(
       "00000000000000000000000000000000:6150b42b6822e054a34655fb9e0b0ea56f179a807efac9b2b6f4d68a811a9333a0e665e511418858d1877fb8af3bf5754b79c6855bbc982b50b4f8cba717bd4a";
     if (!passwordValid(password, row?.password_hash || dummy) || !row)
       throw Error("Email, kata sandi, atau kode tidak sesuai.");
-    if (row.totp_confirmed) {
+    const demoPasswordOnly = demoPasswordOnlyFor(row);
+    if (row.totp_confirmed && !demoPasswordOnly) {
       const step = matchTotp(row, code);
       if (step === undefined)
         throw Error("Email, kata sandi, atau kode tidak sesuai.");
@@ -130,8 +137,8 @@ export async function authenticate(
         step,
       ]);
     }
-    const token = await insertSession(c, row.id);
-    await audit(c, row.id, "auth.login", row.id);
+    const token = await insertSession(c, row.id, demoPasswordOnly);
+    await audit(c, row.id, "auth.login", row.id, { mode: demoPasswordOnly ? 'uat_password' : 'standard' });
     return token;
   });
 }

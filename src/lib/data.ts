@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { currentUser, requireRole } from "./auth";
-import { payoutMode, uatMode } from './mode';
+import { currentUser, requireRole, staffFactorSatisfied } from "./auth";
+import { demoPasswordOnlyEnabled, demoPasswordOnlyFor, payoutMode, uatMode } from './mode';
 export async function publicCampaigns() {
   return (
     await db.query(
@@ -24,6 +24,8 @@ export async function pageData(path: string) {
     flipMode: process.env.FLIP_MODE || "disabled",
     payoutMode: payoutMode(),
     uatMode: uatMode(),
+    demoPasswordOnly: demoPasswordOnlyEnabled(),
+    demoPasswordOnlyUser: user ? demoPasswordOnlyFor(user) : false,
     minPayout: Number(process.env.MIN_PAYOUT_IDR || 50000),
     maxPayout: Number(process.env.MAX_DAILY_PAYOUT_IDR || 500000),
   };
@@ -37,21 +39,21 @@ export async function pageData(path: string) {
   if (
     path.startsWith("ops") &&
     (!["ops", "reviewer", "superadmin"].includes(user.role) ||
-      !user.totp_confirmed)
+      !staffFactorSatisfied(user))
   )
     return {
       ...base,
-      accessDenied: ["ops", "reviewer", "superadmin"].includes(user.role) && !user.totp_confirmed
+      accessDenied: ["ops", "reviewer", "superadmin"].includes(user.role) && !staffFactorSatisfied(user)
         ? "Aktifkan autentikator di Profil untuk membuka dashboard staf."
         : "Peran akun tidak memiliki akses operasional.",
     };
   if (
     path.startsWith("finance") &&
-    (!["finance", "superadmin"].includes(user.role) || !user.totp_confirmed)
+    (!["finance", "superadmin"].includes(user.role) || !staffFactorSatisfied(user))
   )
     return {
       ...base,
-      accessDenied: ["finance", "superadmin"].includes(user.role) && !user.totp_confirmed
+      accessDenied: ["finance", "superadmin"].includes(user.role) && !staffFactorSatisfied(user)
         ? "Aktifkan autentikator di Profil untuk membuka dashboard staf."
         : "Peran akun tidak memiliki akses finance.",
     };
@@ -130,7 +132,7 @@ export async function pageData(path: string) {
     const users =
       user.role === "superadmin"
         ? await db.query(
-            "SELECT id,name,email,role,totp_confirmed,created_at FROM users ORDER BY created_at DESC LIMIT 200",
+            "SELECT id,name,email,role,totp_confirmed,is_demo,access_expires_at,created_at FROM users ORDER BY created_at DESC LIMIT 200",
           )
         : { rows: [] };
     const audits = await db.query(

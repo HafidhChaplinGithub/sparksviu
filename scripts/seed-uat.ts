@@ -4,6 +4,7 @@ import path from 'node:path';
 import { db, tx, journal, audit } from '../src/lib/db';
 import { passwordHash, encrypt, newTotp } from '../src/lib/auth';
 import { storageRoot } from '../src/lib/storage';
+import { demoPasswordOnlyEnabled } from '../src/lib/mode';
 
 if (process.env.ALLOW_UAT_SEED !== 'true' || process.env.UAT_MODE !== 'true' || process.env.PAYOUT_MODE !== 'manual' || process.env.FLIP_MODE !== 'disabled' || process.env.SMTP_HOST || process.env.REGISTRATION_ENABLED === 'true')
   throw Error('Seed UAT hanya untuk database latihan khusus, dengan UAT_MODE=true, PAYOUT_MODE=manual, FLIP_MODE=disabled, tanpa SMTP/registrasi, dan ALLOW_UAT_SEED=true untuk proses ini.');
@@ -13,7 +14,7 @@ const expiresAt=new Date(Date.now()+7*86400000).toISOString();
 const specs=[['participant',5,'Kreator'],['ops',2,'Operasional'],['reviewer',2,'Reviewer'],['finance',2,'Finance'],['superadmin',2,'Administrator']] as const;
 const users=specs.flatMap(([role,count,label])=>Array.from({length:count},(_,i)=>({
   id:randomUUID(),email:`uat.${role}${i+1}@example.test`,name:`${label} UAT ${i+1}`,role,
-  password:randomBytes(24).toString('base64url'),totpSecret:role==='participant'?null:newTotp(),
+  password:randomBytes(24).toString('base64url'),totpSecret:role==='participant'||demoPasswordOnlyEnabled()?null:newTotp(),
 })));
 let createdFile=false;
 try {

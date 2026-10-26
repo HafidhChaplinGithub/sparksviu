@@ -728,12 +728,12 @@ function Auth({
     fields: Field[] = [
       { name: "email", label: "Email", type: "email" },
       { name: "password", label: "Kata sandi", type: "password" },
-      {
+      ...(data.demoPasswordOnly ? [] : [{
         name: "code",
         label: "Kode autentikator (jika aktif)",
         required: false,
         max: 6,
-      },
+      }]),
     ];
   let fixed: Row = {};
   if (path === "daftar") {
@@ -768,6 +768,7 @@ function Auth({
       <div className="box">
         <span className="sticker lilac">Feed Kreator</span>
         <h1>{title}</h1>
+        {path === "masuk" && data.demoPasswordOnly && <p className="muted">Mode demo: masuk dengan email dan kata sandi, tanpa kode autentikator.</p>}
         {path === "daftar" && !data.registrationEnabled ? (
           <div className="banner warn">
             Pendaftaran belum dibuka. Hubungi pengelola untuk informasi akses.
@@ -1121,7 +1122,11 @@ function Profile({ data }: { data: Row }) {
         </section>
         <section className="card">
           <h2>Keamanan akun</h2>
-          {u.totp_confirmed ? (
+          {data.demoPasswordOnlyUser ? (
+            <div className="banner warn">
+              Mode demo: cukup email dan kata sandi, tanpa autentikator. Akses akun tetap dibatasi masa berlaku UAT.
+            </div>
+          ) : u.totp_confirmed ? (
             <div className="banner ok">
               Autentikator aktif. Kode diperlukan setiap masuk.
             </div>
@@ -1843,8 +1848,7 @@ function Operations({ path, data }: { path: string; data: Row }) {
           <article className="card" key={u.id}>
             <h2>{u.name}</h2>
             <p>
-              {u.email} · {u.role} · TOTP{" "}
-              {u.totp_confirmed ? "aktif" : "belum aktif"}
+              {u.email} · {u.role} · {data.demoPasswordOnly && u.is_demo ? "Login demo tanpa autentikator" : `TOTP ${u.totp_confirmed ? "aktif" : "belum aktif"}`}
             </p>
             {u.role !== "superadmin" && (
               <ActionForm

@@ -19,7 +19,8 @@ import {
   cancelRequested,
   flipParse,
 } from "../src/lib/payouts";
-import { encrypt, type User } from "../src/lib/auth";
+import { authenticate, encrypt, hash, newTotp, passwordHash, requireRole, totp, userForSessionHash, type User } from "../src/lib/auth";
+import { demoPasswordOnlyEnabled, demoPasswordOnlyFor } from '../src/lib/mode';
 let admin: User,
   creator: User,
   other: User,
@@ -725,4 +726,43 @@ test('UAT credentials cannot authenticate outside UAT or after expiry; provider 
   process.env.FLIP_MODE='live';process.env.FLIP_API_KEY='dummy-test-only';
   await assert.rejects(()=>flipRequest('/v3/disbursement','POST'));
   process.env.UAT_MODE='false';process.env.FLIP_MODE='disabled';
+});
+
+test('password-only UAT is limited to expiring demo identities and sessions fail closed',async()=>{
+  const keys=['UAT_MODE','UAT_PASSWORD_ONLY','PAYOUT_MODE','FLIP_MODE','SMTP_HOST','REGISTRATION_ENABLED'];
+  const previous=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+  const password='synthetic-password-only-12345',secret=newTotp();
+  const safe=()=>{Object.assign(process.env,{UAT_MODE:'true',UAT_PASSWORD_ONLY:'true',PAYOUT_MODE:'manual',FLIP_MODE:'disabled',REGISTRATION_ENABLED:'false'});delete process.env.SMTP_HOST;};
+  try {
+    safe();
+    const demo=(await db.query("INSERT INTO users(email,name,password_hash,role,is_demo,access_expires_at,totp_secret,totp_confirmed) VALUES('uat.password-only@example.test','Demo staff',$1,'superadmin',true,now()+interval '1 hour',$2,true) RETURNING *",[passwordHash(password),encrypt(secret)])).rows[0];
+    assert.ok(demoPasswordOnlyEnabled());assert.equal(requireRole(demo,['superadmin']).id,demo.id);
+    await assert.rejects(()=>authenticate(demo.email,'wrong-password',''));
+    const token=await authenticate(demo.email,password,'');
+    const session=(await db.query('SELECT auth_mode FROM sessions WHERE id_hash=$1',[hash(token)])).rows[0];
+    assert.equal(session.auth_mode,'uat_password');assert.equal((await userForSessionHash(hash(token)))?.id,demo.id);
+    assert.equal(Number((await db.query('SELECT totp_last_step FROM users WHERE id=$1',[demo.id])).rows[0].totp_last_step),0);
+    for(const [key,value] of [['UAT_MODE','false'],['UAT_PASSWORD_ONLY','false'],['PAYOUT_MODE','flip'],['FLIP_MODE','live'],['SMTP_HOST','smtp.invalid'],['REGISTRATION_ENABLED','true']]) {
+      safe();process.env[key]=value;assert.equal(demoPasswordOnlyEnabled(),false,key);assert.equal(await userForSessionHash(hash(token)),null,key);
+      await assert.rejects(()=>authenticate(demo.email,password,''));
+    }
+    safe();
+    await db.query('UPDATE users SET is_demo=false WHERE id=$1',[demo.id]);assert.equal(await userForSessionHash(hash(token)),null);await assert.rejects(()=>authenticate(demo.email,password,''));
+    await db.query('UPDATE users SET is_demo=true,access_expires_at=NULL WHERE id=$1',[demo.id]);assert.equal(await userForSessionHash(hash(token)),null);await assert.rejects(()=>authenticate(demo.email,password,''));
+    await db.query("UPDATE users SET access_expires_at=now()-interval '1 second' WHERE id=$1",[demo.id]);assert.equal(await userForSessionHash(hash(token)),null);await assert.rejects(()=>authenticate(demo.email,password,''));
+    assert.equal(demoPasswordOnlyFor({...demo,access_expires_at:null}),false);assert.equal(demoPasswordOnlyFor({...demo,access_expires_at:'invalid'}),false);
+    assert.equal(demoPasswordOnlyFor({...demo,is_demo:false}),false);
+    assert.throws(()=>requireRole({...demo,role:'participant'},['finance']));
+    const freshDemo={...demo,totp_confirmed:false};assert.ok(requireRole(freshDemo,['superadmin']));
+    process.env.UAT_PASSWORD_ONLY='false';assert.throws(()=>requireRole(freshDemo,['superadmin']));safe();
+    const realSecret=newTotp();
+    const real=(await db.query("INSERT INTO users(email,name,password_hash,role,totp_secret,totp_confirmed) VALUES('real.staff.factor@example.test','Real staff fixture',$1,'finance',$2,true) RETURNING *",[passwordHash(password),encrypt(realSecret)])).rows[0];
+    await assert.rejects(()=>authenticate(real.email,password,''));
+    const realToken=await authenticate(real.email,password,totp(realSecret,Math.floor(Date.now()/30000)));
+    assert.equal((await db.query('SELECT auth_mode FROM sessions WHERE id_hash=$1',[hash(realToken)])).rows[0].auth_mode,'standard');
+    process.env.UAT_PASSWORD_ONLY='false';assert.equal((await userForSessionHash(hash(realToken)))?.id,real.id);
+    await assert.rejects(()=>authenticate(real.email,password,totp(realSecret,Math.floor(Date.now()/30000))));
+  } finally {
+    for(const key of keys)if(previous[key]===undefined)delete process.env[key];else process.env[key]=previous[key];
+  }
 });
